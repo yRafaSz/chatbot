@@ -8,7 +8,8 @@
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#007AFF">
-    <link rel="apple-touch-icon" href="icon-192.png"> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" href="icon-192.png"> 
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -16,7 +17,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 
     <style>
-        /* --- CSS MANTIDO IGUAL AO SEU --- */
         :root { --primary: #007AFF; --bg-base: #0f172a; --glass-bg: rgba(20, 25, 40, 0.85); --glass-border: rgba(255, 255, 255, 0.1); --text-color: #e2e8f0; --sidebar-width: 260px; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-base); margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; color: var(--text-color); overflow: hidden; position: relative; }
         #bg-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
@@ -100,7 +100,9 @@
         <div class="chat-container">
             <div class="header">
                 <div class="header-left">
-                    <div class="avatar" style="background: linear-gradient(45deg, #4f46e5, #06b6d4);">🤖</div>
+                    <div class="avatar" style="background: transparent; border: none;">
+                        <img src="robo.png" alt="RafAI" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;">
+                    </div>
                     <div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <h2 style="margin:0; font-size:1.1rem; letter-spacing: 0.5px;">RafAI</h2>
@@ -249,10 +251,27 @@
             });
         }
 
+        // --- FUNÇÃO CORRIGIDA COM SEU ÍCONE ROBO.PNG ---
         function renderizarMensagem(texto, remetente, arquivoSrc, tipoArq, animar) {
-            const wrapper = document.createElement('div'); wrapper.className = `message-wrapper ${remetente === 'user' ? 'user-wrapper' : 'bot-wrapper'}`;
-            const avatar = document.createElement('div'); avatar.className = 'avatar'; avatar.textContent = remetente === 'user' ? '👤' : '🤖';
-            const content = document.createElement('div'); content.className = 'message-content';
+            const wrapper = document.createElement('div'); 
+            wrapper.className = `message-wrapper ${remetente === 'user' ? 'user-wrapper' : 'bot-wrapper'}`;
+            
+            // CRIA O AVATAR CORRETO
+            const avatar = document.createElement('div'); 
+            avatar.className = 'avatar'; 
+            
+            if (remetente === 'bot') {
+                // Remove o fundo padrão e insere a imagem do robô
+                avatar.style.background = 'transparent';
+                avatar.style.border = 'none';
+                avatar.innerHTML = `<img src="robo.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
+            } else {
+                // Mantém o bonequinho para o usuário
+                avatar.textContent = '👤';
+            }
+
+            const content = document.createElement('div'); 
+            content.className = 'message-content';
 
             if(remetente === 'bot' && animar) {
                 isGenerating = true; alternarBotoes(true); content.classList.add('cursor-active');
@@ -263,12 +282,15 @@
                 chatArea.scrollTop = chatArea.scrollHeight;
                 return;
             }
+            
             let html = "";
+            
             if(remetente === 'bot') { html += marked.parse(texto); } else { html += texto.replace(/\n/g, '<br>'); }
             content.innerHTML = html; if(remetente === 'bot') hljs.highlightAll();
             if(remetente==='user'){ wrapper.appendChild(content); wrapper.appendChild(avatar); } else { wrapper.appendChild(avatar); wrapper.appendChild(content); }
             chatArea.appendChild(wrapper); chatArea.scrollTop = chatArea.scrollHeight;
         }
+        // -----------------------------------------------
 
         function pararResposta() { if(isGenerating) { isGenerating=false; if(controller) controller.abort(); alternarBotoes(false); const el=document.getElementById('msg-animating'); if(el){el.querySelector('.message-content').classList.remove('cursor-active'); el.removeAttribute('id');} } }
         function alternarBotoes(gerando) { if(gerando){ sendBtn.style.display='none'; stopBtn.style.display='flex'; } else { sendBtn.style.display='flex'; stopBtn.style.display='none'; } }
@@ -285,73 +307,6 @@
             }
 
             const parts = [{ text: prompt }];
-            
-            if (arquivoBase64 && !isTitle) {
-                const base64Clean = arquivoBase64.split(',')[1]; // Remove header data:image...
-                parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } });
-            }
-
-            const payload = { contents: [{ parts: parts }] };
-            
-            controller = new AbortController();
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                signal: controller.signal
-            });
-
-            const data = await response.json();
-            return data.candidates[0].content.parts[0].text;
-        }
-
-        async function enviar() {
-            if (isGenerating) return;
-            const texto = msgInput.value.trim();
-            if (!texto && !arquivoSelecionado) return;
-
-            const idx = todasConversas.findIndex(c => c.id === chatAtualId); if (idx === -1) return;
-
-            // Gera título se for novo
-            if (todasConversas[idx].mensagens.length === 0) {
-                chamarIA(texto, null, null, true).then(titulo => {
-                    const i = todasConversas.findIndex(c => c.id === chatAtualId);
-                    if(i!==-1) { todasConversas[i].titulo = titulo.replace(/[*#]/g, '').trim(); salvarDados(); }
-                });
-            }
-
-            // User Message
-            todasConversas[idx].mensagens.push({ texto, remetente: 'user', arquivo: arquivoSelecionado, tipoArquivo: tipoArquivoVisual });
-            salvarDados();
-            renderizarMensagem(texto, 'user', arquivoSelecionado, tipoArquivoVisual, false);
-
-            // Preparar envio
-            const arqTemp = arquivoSelecionado; 
-            const mimeTemp = mimeTypeSelecionado;
-            
-            msgInput.value = ''; msgInput.style.height = '24px'; removerArquivo(); 
-            loader.style.display = 'block'; chatArea.scrollTop = chatArea.scrollHeight;
-
-            try {
-                const respostaIA = await chamarIA(texto, arqTemp, mimeTemp);
-                loader.style.display = 'none';
-                
-                const currentIdx = todasConversas.findIndex(c => c.id === chatAtualId);
-                if (currentIdx !== -1) {
-                    todasConversas[currentIdx].mensagens.push({ texto: respostaIA, remetente: 'bot', arquivo: null });
-                    salvarDados();
-                }
-                renderizarMensagem(respostaIA, 'bot', null, null, true);
-            } catch (error) {
-                if (error.name !== 'AbortError') {
-                    loader.style.display = 'none';
-                    renderizarMensagem("❌ Erro ao conectar com o Google Gemini.", 'bot', null, null, false);
-                }
-            }
-        }
-
-        msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
-    </script>
             if (arquivoBase64 && !isTitle) {
                 const base64Clean = arquivoBase64.split(',')[1]; // Remove header data:image...
                 parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } });

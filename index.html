@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RafAI - Nurse Assistant</title>
+    <title>RafAI - Ia Assistant</title>
+    <link rel="icon" type="image/png" href="robo.png">
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#007AFF">
@@ -90,7 +91,7 @@
     <div class="main-wrapper">
         <div class="sidebar">
             <button class="new-chat-btn" onclick="iniciarNovoChat()">
-                <i class="fa-solid fa-plus"></i> Novo Chat
+                <i class="fa-solid fa-plus"></i> Novo chat
             </button>
             <div style="font-size:0.75rem; color: #94a3b8; margin-bottom: 12px; font-weight:700; letter-spacing: 1px;">HISTÓRICO</div>
             <div class="history-list" id="history-list"></div>
@@ -263,7 +264,6 @@
                 return;
             }
             let html = "";
-            if(arquivoSrc) { if(tipoArq==='image') html+=`<img src="${arquivoSrc}" class="chat-image-preview">`; else if(tipoArq==='video') html+=`<video src="${arquivoSrc}" controls class="chat-video-preview"></video>`; else html+=`<div class="chat-file-preview"><i class="fa-solid fa-file-pdf"></i> Arquivo Anexado</div>`; }
             if(remetente === 'bot') { html += marked.parse(texto); } else { html += texto.replace(/\n/g, '<br>'); }
             content.innerHTML = html; if(remetente === 'bot') hljs.highlightAll();
             if(remetente==='user'){ wrapper.appendChild(content); wrapper.appendChild(avatar); } else { wrapper.appendChild(avatar); wrapper.appendChild(content); }
@@ -285,6 +285,73 @@
             }
 
             const parts = [{ text: prompt }];
+            
+            if (arquivoBase64 && !isTitle) {
+                const base64Clean = arquivoBase64.split(',')[1]; // Remove header data:image...
+                parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } });
+            }
+
+            const payload = { contents: [{ parts: parts }] };
+            
+            controller = new AbortController();
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        async function enviar() {
+            if (isGenerating) return;
+            const texto = msgInput.value.trim();
+            if (!texto && !arquivoSelecionado) return;
+
+            const idx = todasConversas.findIndex(c => c.id === chatAtualId); if (idx === -1) return;
+
+            // Gera título se for novo
+            if (todasConversas[idx].mensagens.length === 0) {
+                chamarIA(texto, null, null, true).then(titulo => {
+                    const i = todasConversas.findIndex(c => c.id === chatAtualId);
+                    if(i!==-1) { todasConversas[i].titulo = titulo.replace(/[*#]/g, '').trim(); salvarDados(); }
+                });
+            }
+
+            // User Message
+            todasConversas[idx].mensagens.push({ texto, remetente: 'user', arquivo: arquivoSelecionado, tipoArquivo: tipoArquivoVisual });
+            salvarDados();
+            renderizarMensagem(texto, 'user', arquivoSelecionado, tipoArquivoVisual, false);
+
+            // Preparar envio
+            const arqTemp = arquivoSelecionado; 
+            const mimeTemp = mimeTypeSelecionado;
+            
+            msgInput.value = ''; msgInput.style.height = '24px'; removerArquivo(); 
+            loader.style.display = 'block'; chatArea.scrollTop = chatArea.scrollHeight;
+
+            try {
+                const respostaIA = await chamarIA(texto, arqTemp, mimeTemp);
+                loader.style.display = 'none';
+                
+                const currentIdx = todasConversas.findIndex(c => c.id === chatAtualId);
+                if (currentIdx !== -1) {
+                    todasConversas[currentIdx].mensagens.push({ texto: respostaIA, remetente: 'bot', arquivo: null });
+                    salvarDados();
+                }
+                renderizarMensagem(respostaIA, 'bot', null, null, true);
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    loader.style.display = 'none';
+                    renderizarMensagem("❌ Erro ao conectar com o Google Gemini.", 'bot', null, null, false);
+                }
+            }
+        }
+
+        msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
+    </script>
             if (arquivoBase64 && !isTitle) {
                 const base64Clean = arquivoBase64.split(',')[1]; // Remove header data:image...
                 parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } });

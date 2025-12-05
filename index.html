@@ -33,7 +33,6 @@
             color: var(--text-color); 
             overflow: hidden; 
             position: relative;
-            /* Remove suavização excessiva de fonte para performance */
             -webkit-font-smoothing: antialiased;
         }
 
@@ -47,24 +46,22 @@
             max-width: 1200px; 
             height: 90vh; 
             background: var(--glass-bg); 
-            /* OTIMIZAÇÃO: Blur reduzido levemente para ganho de FPS e will-change ativado */
             backdrop-filter: blur(12px); 
             -webkit-backdrop-filter: blur(12px); 
             border: 1px solid var(--glass-border); 
             border-radius: 24px; 
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6); 
             overflow: hidden; 
-            will-change: transform, backdrop-filter; /* Força GPU */
-            transform: translateZ(0); /* Hack para ativar aceleração de hardware */
+            will-change: transform, backdrop-filter; 
+            transform: translateZ(0); 
         }
 
         .sidebar { width: var(--sidebar-width); background: rgba(0, 0, 0, 0.2); border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; padding: 20px; transition: 0.15s ease-out; }
         
-        /* BOTÕES MAIS RÁPIDOS (Snappy) */
         .new-chat-btn { 
             background: linear-gradient(90deg, #007AFF, #00C6FF); color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-weight: 600; 
             display: flex; align-items: center; justify-content: center; gap: 10px; 
-            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1); /* Animação ultra rápida */
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1); 
             margin-bottom: 25px; width: 100%; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.85rem; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3); 
         }
         .new-chat-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0, 122, 255, 0.5); filter: brightness(1.1); }
@@ -96,7 +93,6 @@
         #chat-area { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; scroll-behavior: smooth; font-size: 16px; }
         #chat-area::-webkit-scrollbar { width: 6px; } #chat-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
         
-        /* Animação de entrada mais rápida */
         .message-wrapper { display: flex; align-items: flex-start; gap: 12px; max-width: 85%; animation: slideIn 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -108,7 +104,6 @@
         .user-wrapper .message-content { background: var(--primary); color: white; border-bottom-right-radius: 2px; }
         .bot-wrapper .message-content { background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.1); color: #f1f5f9; border-bottom-left-radius: 2px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         
-        /* Formatação Markdown */
         .message-content h1, .message-content h2 { margin-top: 10px; margin-bottom: 5px; color: #fff; }
         .message-content p { margin: 5px 0; }
         .message-content strong { color: #60a5fa; }
@@ -121,7 +116,33 @@
         .chat-file-preview { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.1); padding:10px; border-radius:8px; margin-bottom:8px; }
         
         .input-area { padding: 20px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--glass-border); display: flex; gap: 12px; align-items: flex-end; position: relative; }
-        textarea { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 14px 20px; border-radius: 12px; color: white; font-size: 1rem; outline: none; transition: 0.2s; resize: none; height: 24px; max-height: 150px; overflow-y: auto; line-height: 1.5; font-family: 'Inter', sans-serif; }
+        
+        /* --- CORREÇÃO: ALTURA, ALINHAMENTO E REMOÇÃO DE SCROLL --- */
+        textarea { 
+            flex: 1; 
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid var(--glass-border); 
+            /* Padding ajustado para centralizar o texto verticalmente */
+            padding: 13px 20px; 
+            border-radius: 12px; 
+            color: white; 
+            font-size: 1rem; 
+            outline: none; 
+            transition: 0.2s; 
+            resize: none; 
+            /* Altura fixa inicial igual à dos botões (50px) para alinhar */
+            height: 50px; 
+            max-height: 150px; 
+            overflow-y: auto; 
+            line-height: 1.5; 
+            font-family: 'Inter', sans-serif; 
+            /* Esconder setas da barra de rolagem */
+            scrollbar-width: none; 
+            -ms-overflow-style: none; 
+        }
+        textarea::-webkit-scrollbar { display: none; }
+        /* ---------------------------------------------- */
+
         textarea:focus { background: rgba(255,255,255,0.1); border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2); }
         
         #stop-btn { display: none; background: #ff4d4d; color: white; border: none; width: 50px; height: 50px; border-radius: 12px; cursor: pointer; align-items: center; justify-content: center; }
@@ -238,9 +259,9 @@
 
         if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js'); }); }
 
-        // --- BACKGROUND OTIMIZADO (SISTEMA DE PARTÍCULAS RÁPIDO) ---
+        // --- BACKGROUND OTIMIZADO ---
         const canvas = document.getElementById('bg-canvas'); 
-        const ctx = canvas.getContext('2d', { alpha: false }); // Otimização de render
+        const ctx = canvas.getContext('2d', { alpha: false }); 
         let particles = [];
         
         function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
@@ -254,7 +275,6 @@
                 this.x = Math.random() * canvas.width; 
                 this.y = Math.random() * canvas.height; 
                 this.size = Math.random() * 2 + 1; 
-                // AUMENTO DE VELOCIDADE PARA SENSAÇÃO 144Hz
                 this.speedX = (Math.random() - 0.5) * 2.5; 
                 this.speedY = (Math.random() - 0.5) * 2.5; 
                 this.color = `rgba(${Math.random()*100}, ${100+Math.random()*155}, 255, 0.6)`; 
@@ -262,46 +282,34 @@
             update() { 
                 this.x += this.speedX; 
                 this.y += this.speedY; 
-                
-                // Rebater nas bordas
                 if(this.x > canvas.width || this.x < 0) this.speedX *= -1; 
                 if(this.y > canvas.height || this.y < 0) this.speedY *= -1; 
-                
-                // Interatividade com Mouse (Raio menor para performance)
-                let dx = mouse.x - this.x; 
-                let dy = mouse.y - this.y; 
-                let distance = dx*dx + dy*dy; // Otimização: Evitar Math.sqrt
-                
-                if(distance < 22500){ // 150^2
-                    ctx.beginPath(); 
-                    ctx.strokeStyle = this.color; 
-                    ctx.lineWidth = 0.4; 
-                    ctx.moveTo(this.x, this.y); 
-                    ctx.lineTo(mouse.x, mouse.y); 
-                    ctx.stroke(); 
+                let dx = mouse.x - this.x; let dy = mouse.y - this.y; 
+                let distance = dx*dx + dy*dy; 
+                if(distance < 22500){ 
+                    ctx.beginPath(); ctx.strokeStyle = this.color; ctx.lineWidth = 0.4; 
+                    ctx.moveTo(this.x, this.y); ctx.lineTo(mouse.x, mouse.y); ctx.stroke(); 
                 } 
             }
-            draw() { 
-                ctx.fillStyle = this.color; 
-                ctx.beginPath(); 
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); 
-                ctx.fill(); 
-            }
+            draw() { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill(); }
         }
         
         function initParticles() { particles=[]; for(let i=0; i<90; i++) particles.push(new Particle()); }
         
         function animateParticles() { 
-            // Limpa com cor sólida (mais rápido que clearRect transparente)
-            ctx.fillStyle = "#0f172a"; 
-            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#0f172a"; ctx.fillRect(0,0,canvas.width,canvas.height);
             particles.forEach(p=>{ p.update(); p.draw(); }); 
             requestAnimationFrame(animateParticles); 
         }
         initParticles(); animateParticles();
         // ------------------------------------------------------------
 
-        function autoResize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+        // AJUSTE JS PARA INICIAR COM 50PX
+        function autoResize(el) { 
+            el.style.height = '50px'; 
+            el.style.height = el.scrollHeight + 'px'; 
+        }
+
         function aumentarFonte() { tamanhoFonte+=2; chatArea.style.fontSize=tamanhoFonte+"px"; }
         function diminuirFonte() { tamanhoFonte-=2; if(tamanhoFonte<12)tamanhoFonte=12; chatArea.style.fontSize=tamanhoFonte+"px"; }
         function toggleMenu() { attachMenu.classList.toggle('active'); }
@@ -421,7 +429,8 @@
             salvarDados();
             renderizarMensagem(texto, 'user', arquivoSelecionado, tipoArquivoVisual, false);
             const arqTemp = arquivoSelecionado; const mimeTemp = mimeTypeSelecionado;
-            msgInput.value = ''; msgInput.style.height = '24px'; removerArquivo(); loader.style.display = 'block'; chatArea.scrollTop = chatArea.scrollHeight;
+            // RESETA A ALTURA PARA 50PX
+            msgInput.value = ''; msgInput.style.height = '50px'; removerArquivo(); loader.style.display = 'block'; chatArea.scrollTop = chatArea.scrollHeight;
             try {
                 const respostaIA = await chamarIA(texto, arqTemp, mimeTemp);
                 loader.style.display = 'none';

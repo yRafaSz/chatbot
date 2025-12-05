@@ -78,6 +78,34 @@
         .delete-chat { opacity: 0; color: #ff4d4d; padding: 4px 8px; border-radius: 4px; flex-shrink: 0; transition: 0.1s; }
         .history-item:hover .delete-chat { opacity: 1; }
         .delete-chat:hover { background: rgba(255, 77, 77, 0.2); }
+        /* --- ESTILO DO PIN (FIXAR) --- */
+.actions-group { display: flex; align-items: center; gap: 5px; }
+
+.pin-chat { 
+    opacity: 0; 
+    color: #94a3b8; 
+    padding: 4px; 
+    border-radius: 4px; 
+    transition: 0.2s; 
+    font-size: 0.85rem;
+}
+
+.history-item:hover .pin-chat { opacity: 1; }
+
+.pin-chat:hover { background: rgba(255, 255, 255, 0.1); color: white; }
+
+/* Quando está fixado, fica visível e dourado */
+.pin-chat.active { 
+    opacity: 1; 
+    color: #fbbf24; /* Cor Dourada */
+    transform: rotate(45deg); 
+}
+
+.pinned-separator {
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin: 10px 0;
+    position: relative;
+}
 
         .chat-container { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
         .header { padding: 15px 25px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.1); }
@@ -242,205 +270,250 @@
         </div>
     </div>
 
-    <script>
-        const API_KEY = "AIzaSyASYmef12_4FFF4d8JPyJY9sAW6yI8v0v0"; 
-        
-        const chatArea = document.getElementById('chat-area');
-        const loader = document.getElementById('loader');
-        const historyList = document.getElementById('history-list');
-        const sendBtn = document.getElementById('send-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const attachMenu = document.getElementById('attach-menu');
-        const msgInput = document.getElementById('msgInput');
-        
-        let arquivoSelecionado = null; let mimeTypeSelecionado = null; let tipoArquivoVisual = null;
-        let chatAtualId = null; let todasConversas = []; let animationId = null; let isGenerating = false; let tamanhoFonte = 16; 
-        let controller = null;
+<script>
+    const API_KEY = "AIzaSyASYmef12_4FFF4d8JPyJY9sAW6yI8v0v0"; // ⚠️ Cuidado ao expor keys no front-end
 
-        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js'); }); }
+    const chatArea = document.getElementById('chat-area');
+    const loader = document.getElementById('loader');
+    const historyList = document.getElementById('history-list');
+    const sendBtn = document.getElementById('send-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const attachMenu = document.getElementById('attach-menu');
+    const msgInput = document.getElementById('msgInput');
+    
+    let arquivoSelecionado = null; let mimeTypeSelecionado = null; let tipoArquivoVisual = null;
+    let chatAtualId = null; let todasConversas = []; let isGenerating = false; let tamanhoFonte = 16; 
+    let controller = null;
 
-        // --- BACKGROUND OTIMIZADO ---
-        const canvas = document.getElementById('bg-canvas'); 
-        const ctx = canvas.getContext('2d', { alpha: false }); 
-        let particles = [];
-        
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        window.addEventListener('resize', resizeCanvas); resizeCanvas();
-        
-        const mouse = { x: null, y: null }; 
-        window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
-        
-        class Particle {
-            constructor() { 
-                this.x = Math.random() * canvas.width; 
-                this.y = Math.random() * canvas.height; 
-                this.size = Math.random() * 2 + 1; 
-                this.speedX = (Math.random() - 0.5) * 2.5; 
-                this.speedY = (Math.random() - 0.5) * 2.5; 
-                this.color = `rgba(${Math.random()*100}, ${100+Math.random()*155}, 255, 0.6)`; 
+    if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js'); }); }
+
+    // --- BACKGROUND ---
+    const canvas = document.getElementById('bg-canvas'); 
+    const ctx = canvas.getContext('2d', { alpha: false }); 
+    let particles = [];
+    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resizeCanvas); resizeCanvas();
+    const mouse = { x: null, y: null }; 
+    window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+    class Particle {
+        constructor() { 
+            this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; 
+            this.size = Math.random() * 2 + 1; this.speedX = (Math.random() - 0.5) * 2.5; this.speedY = (Math.random() - 0.5) * 2.5; 
+            this.color = `rgba(${Math.random()*100}, ${100+Math.random()*155}, 255, 0.6)`; 
+        }
+        update() { 
+            this.x += this.speedX; this.y += this.speedY; 
+            if(this.x > canvas.width || this.x < 0) this.speedX *= -1; 
+            if(this.y > canvas.height || this.y < 0) this.speedY *= -1; 
+            let dx = mouse.x - this.x; let dy = mouse.y - this.y; let distance = dx*dx + dy*dy; 
+            if(distance < 22500){ ctx.beginPath(); ctx.strokeStyle = this.color; ctx.lineWidth = 0.4; ctx.moveTo(this.x, this.y); ctx.lineTo(mouse.x, mouse.y); ctx.stroke(); } 
+        }
+        draw() { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill(); }
+    }
+    function initParticles() { particles=[]; for(let i=0; i<90; i++) particles.push(new Particle()); }
+    function animateParticles() { ctx.fillStyle = "#0f172a"; ctx.fillRect(0,0,canvas.width,canvas.height); particles.forEach(p=>{ p.update(); p.draw(); }); requestAnimationFrame(animateParticles); }
+    initParticles(); animateParticles();
+
+    // --- FUNÇÕES DE CHAT ---
+    function autoResize(el) { el.style.height = '50px'; el.style.height = el.scrollHeight + 'px'; }
+    function aumentarFonte() { tamanhoFonte+=2; chatArea.style.fontSize=tamanhoFonte+"px"; }
+    function diminuirFonte() { tamanhoFonte-=2; if(tamanhoFonte<12)tamanhoFonte=12; chatArea.style.fontSize=tamanhoFonte+"px"; }
+    function toggleMenu() { attachMenu.classList.toggle('active'); }
+    document.addEventListener('click', (e) => { if(!e.target.closest('.attach-menu') && !e.target.closest('.attach-btn')) attachMenu.classList.remove('active'); });
+    function triggerInput(type) { attachMenu.classList.remove('active'); if(type==='image') document.getElementById('input-image').click(); if(type==='video') document.getElementById('input-video').click(); if(type==='file') document.getElementById('input-file').click(); }
+
+    function processarArquivo(input, tipo) {
+        const file = input.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) { arquivoSelecionado=e.target.result; mimeTypeSelecionado=file.type; tipoArquivoVisual=tipo; mostrarPreview(arquivoSelecionado, tipo, file.name); };
+        reader.readAsDataURL(file);
+    }
+    function mostrarPreview(src, tipo, nome) {
+        const container = document.getElementById('file-preview-container'); const img = document.getElementById('file-preview-img'); const icon = document.getElementById('file-preview-icon');
+        container.style.display = 'flex'; document.getElementById('file-preview-name').textContent = nome; img.style.display='none'; icon.style.display='none';
+        if(tipo==='image') { img.src=src; img.style.display='block'; } else { icon.style.display='block'; icon.className = tipo==='video' ? "fa-solid fa-video" : "fa-solid fa-file-pdf"; }
+    }
+    function removerArquivo() { arquivoSelecionado=null; document.getElementById('file-preview-container').style.display='none'; document.getElementById('input-image').value=""; document.getElementById('input-video').value=""; document.getElementById('input-file').value=""; }
+    
+    msgInput.addEventListener('paste', (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for(let item of items) {
+            if(item.kind==='file' && item.type.includes('image/')) {
+                const blob = item.getAsFile(); const reader = new FileReader();
+                reader.onload = (event) => { arquivoSelecionado=event.target.result; mimeTypeSelecionado=item.type; tipoArquivoVisual='image'; mostrarPreview(arquivoSelecionado, 'image', 'Imagem colada'); };
+                reader.readAsDataURL(blob);
             }
-            update() { 
-                this.x += this.speedX; 
-                this.y += this.speedY; 
-                if(this.x > canvas.width || this.x < 0) this.speedX *= -1; 
-                if(this.y > canvas.height || this.y < 0) this.speedY *= -1; 
-                let dx = mouse.x - this.x; let dy = mouse.y - this.y; 
-                let distance = dx*dx + dy*dy; 
-                if(distance < 22500){ 
-                    ctx.beginPath(); ctx.strokeStyle = this.color; ctx.lineWidth = 0.4; 
-                    ctx.moveTo(this.x, this.y); ctx.lineTo(mouse.x, mouse.y); ctx.stroke(); 
-                } 
-            }
-            draw() { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill(); }
         }
-        
-        function initParticles() { particles=[]; for(let i=0; i<90; i++) particles.push(new Particle()); }
-        
-        function animateParticles() { 
-            ctx.fillStyle = "#0f172a"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            particles.forEach(p=>{ p.update(); p.draw(); }); 
-            requestAnimationFrame(animateParticles); 
-        }
-        initParticles(); animateParticles();
-        // ------------------------------------------------------------
+    });
 
-        // AJUSTE JS PARA INICIAR COM 50PX
-        function autoResize(el) { 
-            el.style.height = '50px'; 
-            el.style.height = el.scrollHeight + 'px'; 
-        }
+    // --- LÓGICA DE DADOS E RENDERIZAÇÃO ---
+    window.onload = function() {
+        todasConversas = JSON.parse(localStorage.getItem('nurseAiChats')) || [];
+        if(todasConversas.length > 0) { renderizarSidebar(); carregarConversa(todasConversas[0].id); } else { iniciarNovoChat(); }
+    };
 
-        function aumentarFonte() { tamanhoFonte+=2; chatArea.style.fontSize=tamanhoFonte+"px"; }
-        function diminuirFonte() { tamanhoFonte-=2; if(tamanhoFonte<12)tamanhoFonte=12; chatArea.style.fontSize=tamanhoFonte+"px"; }
-        function toggleMenu() { attachMenu.classList.toggle('active'); }
-        document.addEventListener('click', (e) => { if(!e.target.closest('.attach-menu') && !e.target.closest('.attach-btn')) attachMenu.classList.remove('active'); });
+    function salvarDados() { localStorage.setItem('nurseAiChats', JSON.stringify(todasConversas)); renderizarSidebar(); }
 
-        function triggerInput(type) { attachMenu.classList.remove('active'); if(type==='image') document.getElementById('input-image').click(); if(type==='video') document.getElementById('input-video').click(); if(type==='file') document.getElementById('input-file').click(); }
+    function iniciarNovoChat() { 
+        pararResposta(); chatAtualId = Date.now(); 
+        // Adiciona propriedade 'fixed: false'
+        todasConversas.unshift({ id: chatAtualId, titulo: "Nova Conversa", mensagens: [], fixed: false }); 
+        if(todasConversas.length>50) todasConversas.pop(); // Limite de histórico aumentado
+        salvarDados(); carregarConversa(chatAtualId); 
+    }
 
-        function processarArquivo(input, tipo) {
-            const file = input.files[0]; if(!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) { arquivoSelecionado=e.target.result; mimeTypeSelecionado=file.type; tipoArquivoVisual=tipo; mostrarPreview(arquivoSelecionado, tipo, file.name); };
-            reader.readAsDataURL(file);
-        }
+    // --- NOVA FUNÇÃO: FIXAR CONVERSA ---
+    function toggleFixar(e, id) {
+        e.stopPropagation();
+        const chatIndex = todasConversas.findIndex(c => c.id === id);
+        if (chatIndex === -1) return;
 
-        function mostrarPreview(src, tipo, nome) {
-            const container = document.getElementById('file-preview-container');
-            const img = document.getElementById('file-preview-img');
-            const icon = document.getElementById('file-preview-icon');
-            container.style.display = 'flex'; document.getElementById('file-preview-name').textContent = nome;
-            img.style.display='none'; icon.style.display='none';
-            if(tipo==='image') { img.src=src; img.style.display='block'; }
-            else { icon.style.display='block'; icon.className = tipo==='video' ? "fa-solid fa-video" : "fa-solid fa-file-pdf"; }
-        }
+        const chat = todasConversas[chatIndex];
 
-        function removerArquivo() { arquivoSelecionado=null; document.getElementById('file-preview-container').style.display='none'; document.getElementById('input-image').value=""; document.getElementById('input-video').value=""; document.getElementById('input-file').value=""; }
-
-        msgInput.addEventListener('paste', (e) => {
-            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-            for(let item of items) {
-                if(item.kind==='file' && item.type.includes('image/')) {
-                    const blob = item.getAsFile(); const reader = new FileReader();
-                    reader.onload = (event) => { arquivoSelecionado=event.target.result; mimeTypeSelecionado=item.type; tipoArquivoVisual='image'; mostrarPreview(arquivoSelecionado, 'image', 'Imagem colada'); };
-                    reader.readAsDataURL(blob);
-                }
-            }
-        });
-
-        window.onload = function() {
-            todasConversas = JSON.parse(localStorage.getItem('nurseAiChats')) || [];
-            if(todasConversas.length > 0) { renderizarSidebar(); carregarConversa(todasConversas[0].id); } else { iniciarNovoChat(); }
-        };
-        function salvarDados() { localStorage.setItem('nurseAiChats', JSON.stringify(todasConversas)); renderizarSidebar(); }
-        function iniciarNovoChat() { pararResposta(); chatAtualId = Date.now(); todasConversas.unshift({ id: chatAtualId, titulo: "Nova Conversa", mensagens: [] }); if(todasConversas.length>10) todasConversas.pop(); salvarDados(); carregarConversa(chatAtualId); }
-        function carregarConversa(id) {
-            pararResposta(); chatAtualId = id; chatArea.innerHTML = '';
-            const conversa = todasConversas.find(c => c.id === id); if(!conversa) return;
-            if(conversa.mensagens.length===0) renderizarMensagem('Olá! Sou o **RafAI**. Posso analisar imagens, códigos e dúvidas de Enfermagem/IoT.', 'bot', null, null, false);
-            else conversa.mensagens.forEach(msg => renderizarMensagem(msg.texto, msg.remetente, msg.arquivo, msg.tipoArquivo, false));
-            renderizarSidebar();
-        }
-        function deletarConversa(e, id) { e.stopPropagation(); if(!confirm("Apagar?")) return; todasConversas = todasConversas.filter(c => c.id !== id); salvarDados(); if(id === chatAtualId) { if(todasConversas.length > 0) carregarConversa(todasConversas[0].id); else iniciarNovoChat(); } else renderizarSidebar(); }
-        function renderizarSidebar() {
-            historyList.innerHTML = ''; todasConversas.forEach(c => {
-                const item = document.createElement('div'); item.className = `history-item ${c.id === chatAtualId ? 'active' : ''}`; item.onclick = () => carregarConversa(c.id);
-                item.innerHTML = `<span class="history-title"><i class="fa-regular fa-message"></i> ${c.titulo}</span><span class="delete-chat" onclick="deletarConversa(event, ${c.id})"><i class="fa-solid fa-trash"></i></span>`;
-                historyList.appendChild(item);
-            });
-        }
-
-        function renderizarMensagem(texto, remetente, arquivoSrc, tipoArq, animar) {
-            const wrapper = document.createElement('div'); 
-            wrapper.className = `message-wrapper ${remetente === 'user' ? 'user-wrapper' : 'bot-wrapper'}`;
-            
-            const avatar = document.createElement('div'); 
-            avatar.className = 'avatar'; 
-            
-            if (remetente === 'bot') {
-                avatar.style.background = 'transparent';
-                avatar.style.border = 'none';
-                avatar.innerHTML = `<img src="robo.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`;
-            } else {
-                avatar.textContent = '👤';
-            }
-
-            const content = document.createElement('div'); 
-            content.className = 'message-content';
-
-            if(remetente === 'bot' && animar) {
-                isGenerating = true; alternarBotoes(true); content.classList.add('cursor-active');
-                wrapper.appendChild(avatar); wrapper.appendChild(content); chatArea.appendChild(wrapper);
-                wrapper.id = 'msg-animating';
-                content.innerHTML = marked.parse(texto); hljs.highlightAll(); content.classList.remove('cursor-active');
-                isGenerating = false; alternarBotoes(false); wrapper.removeAttribute('id');
-                chatArea.scrollTop = chatArea.scrollHeight;
+        if (!chat.fixed) {
+            // Verificar limite de 5
+            const totalFixados = todasConversas.filter(c => c.fixed).length;
+            if (totalFixados >= 5) {
+                alert("Você atingiu o limite de 5 conversas fixadas!");
                 return;
             }
-            
-            let html = "";
-            if(remetente === 'bot') { html += marked.parse(texto); } else { html += texto.replace(/\n/g, '<br>'); }
-            content.innerHTML = html; if(remetente === 'bot') hljs.highlightAll();
-            if(remetente==='user'){ wrapper.appendChild(content); wrapper.appendChild(avatar); } else { wrapper.appendChild(avatar); wrapper.appendChild(content); }
-            chatArea.appendChild(wrapper); chatArea.scrollTop = chatArea.scrollHeight;
+            chat.fixed = true;
+        } else {
+            chat.fixed = false;
+        }
+        salvarDados();
+    }
+
+    function renderizarSidebar() {
+        historyList.innerHTML = '';
+        
+        // Separa fixados de normais
+        const fixados = todasConversas.filter(c => c.fixed);
+        const normais = todasConversas.filter(c => !c.fixed);
+
+        // Renderiza Fixados
+        fixados.forEach(c => criarItemSidebar(c));
+
+        // Separador se houver fixados
+        if (fixados.length > 0 && normais.length > 0) {
+            const separator = document.createElement('div');
+            separator.className = 'pinned-separator';
+            historyList.appendChild(separator);
         }
 
-        function pararResposta() { if(isGenerating) { isGenerating=false; if(controller) controller.abort(); alternarBotoes(false); const el=document.getElementById('msg-animating'); if(el){el.querySelector('.message-content').classList.remove('cursor-active'); el.removeAttribute('id');} } }
-        function alternarBotoes(gerando) { if(gerando){ sendBtn.style.display='none'; stopBtn.style.display='flex'; } else { sendBtn.style.display='flex'; stopBtn.style.display='none'; } }
+        // Renderiza Normais
+        normais.forEach(c => criarItemSidebar(c));
+    }
 
-        async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
-            let prompt = isTitle ? `Analise: '${mensagem}'. Crie um título com MAX 4 palavras. Responda APENAS o título.` : `Você é o RafAI, assistente de Enfermagem e IoT. Use Markdown. Analise clinicamente. Msg: ${mensagem}`;
-            const parts = [{ text: prompt }];
-            if (arquivoBase64 && !isTitle) { const base64Clean = arquivoBase64.split(',')[1]; parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } }); }
-            const payload = { contents: [{ parts: parts }] };
-            controller = new AbortController();
-            const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
-            const data = await response.json();
-            return data.candidates[0].content.parts[0].text;
+    function criarItemSidebar(c) {
+        const item = document.createElement('div'); 
+        item.className = `history-item ${c.id === chatAtualId ? 'active' : ''}`; 
+        item.onclick = () => carregarConversa(c.id);
+        
+        // Ícone do Pin (Dourado se fixed=true)
+        const pinClass = c.fixed ? 'pin-chat active' : 'pin-chat';
+        const pinIcon = c.fixed ? 'fa-solid fa-thumbtack' : 'fa-solid fa-thumbtack'; // Pode mudar o ícone se quiser
+
+        item.innerHTML = `
+            <span class="history-title">
+                <i class="fa-regular fa-message"></i> ${c.titulo}
+            </span>
+            <div class="actions-group">
+                <span class="${pinClass}" onclick="toggleFixar(event, ${c.id})" title="${c.fixed ? 'Desfixar' : 'Fixar'}">
+                    <i class="${pinIcon}"></i>
+                </span>
+                <span class="delete-chat" onclick="deletarConversa(event, ${c.id})" title="Apagar">
+                    <i class="fa-solid fa-trash"></i>
+                </span>
+            </div>
+        `;
+        historyList.appendChild(item);
+    }
+
+    function carregarConversa(id) {
+        pararResposta(); chatAtualId = id; chatArea.innerHTML = '';
+        const conversa = todasConversas.find(c => c.id === id); if(!conversa) return;
+        
+        // Atualiza visual da sidebar para marcar ativo
+        document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
+        renderizarSidebar(); // Re-renderiza para garantir ordem e classe active
+
+        if(conversa.mensagens.length===0) renderizarMensagem('Olá! Sou o **RafAI**. Posso analisar imagens, códigos e dúvidas de Enfermagem/IoT.', 'bot', null, null, false);
+        else conversa.mensagens.forEach(msg => renderizarMensagem(msg.texto, msg.remetente, msg.arquivo, msg.tipoArquivo, false));
+    }
+
+    function deletarConversa(e, id) { 
+        e.stopPropagation(); 
+        if(!confirm("Apagar esta conversa?")) return; 
+        todasConversas = todasConversas.filter(c => c.id !== id); 
+        salvarDados(); 
+        if(id === chatAtualId) { 
+            if(todasConversas.length > 0) carregarConversa(todasConversas[0].id); 
+            else iniciarNovoChat(); 
+        } 
+    }
+
+    function renderizarMensagem(texto, remetente, arquivoSrc, tipoArq, animar) {
+        const wrapper = document.createElement('div'); wrapper.className = `message-wrapper ${remetente === 'user' ? 'user-wrapper' : 'bot-wrapper'}`;
+        const avatar = document.createElement('div'); avatar.className = 'avatar'; 
+        if (remetente === 'bot') { avatar.style.background = 'transparent'; avatar.style.border = 'none'; avatar.innerHTML = `<img src="robo.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`; } else { avatar.textContent = '👤'; }
+        const content = document.createElement('div'); content.className = 'message-content';
+
+        if(arquivoSrc) {
+            let mediaHtml = '';
+            if(tipoArq==='image') mediaHtml = `<img src="${arquivoSrc}" class="chat-image-preview" onclick="window.open(this.src)">`;
+            else if(tipoArq==='video') mediaHtml = `<video src="${arquivoSrc}" controls class="chat-video-preview"></video>`;
+            else mediaHtml = `<div class="chat-file-preview"><i class="fa-solid fa-file"></i> Arquivo anexado</div>`;
+            content.innerHTML += mediaHtml;
         }
 
-        async function enviar() {
-            if (isGenerating) return;
-            const texto = msgInput.value.trim();
-            if (!texto && !arquivoSelecionado) return;
-            const idx = todasConversas.findIndex(c => c.id === chatAtualId); if (idx === -1) return;
-            if (todasConversas[idx].mensagens.length === 0) { chamarIA(texto, null, null, true).then(titulo => { const i = todasConversas.findIndex(c => c.id === chatAtualId); if(i!==-1) { todasConversas[i].titulo = titulo.replace(/[*#]/g, '').trim(); salvarDados(); } }); }
-            todasConversas[idx].mensagens.push({ texto, remetente: 'user', arquivo: arquivoSelecionado, tipoArquivo: tipoArquivoVisual });
-            salvarDados();
-            renderizarMensagem(texto, 'user', arquivoSelecionado, tipoArquivoVisual, false);
-            const arqTemp = arquivoSelecionado; const mimeTemp = mimeTypeSelecionado;
-            // RESETA A ALTURA PARA 50PX
-            msgInput.value = ''; msgInput.style.height = '50px'; removerArquivo(); loader.style.display = 'block'; chatArea.scrollTop = chatArea.scrollHeight;
-            try {
-                const respostaIA = await chamarIA(texto, arqTemp, mimeTemp);
-                loader.style.display = 'none';
-                const currentIdx = todasConversas.findIndex(c => c.id === chatAtualId);
-                if (currentIdx !== -1) { todasConversas[currentIdx].mensagens.push({ texto: respostaIA, remetente: 'bot', arquivo: null }); salvarDados(); }
-                renderizarMensagem(respostaIA, 'bot', null, null, true);
-            } catch (error) { if (error.name !== 'AbortError') { loader.style.display = 'none'; renderizarMensagem("❌ Erro ao conectar com o Google Gemini.", 'bot', null, null, false); } }
+        if(remetente === 'bot' && animar) {
+            isGenerating = true; alternarBotoes(true); content.classList.add('cursor-active');
+            wrapper.appendChild(avatar); wrapper.appendChild(content); chatArea.appendChild(wrapper); wrapper.id = 'msg-animating';
+            content.innerHTML += marked.parse(texto); hljs.highlightAll(); content.classList.remove('cursor-active');
+            isGenerating = false; alternarBotoes(false); wrapper.removeAttribute('id'); chatArea.scrollTop = chatArea.scrollHeight; return;
         }
-        msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
-    </script>
+        let html = ""; if(remetente === 'bot') { html += marked.parse(texto); } else { html += texto.replace(/\n/g, '<br>'); }
+        content.innerHTML += html; if(remetente === 'bot') hljs.highlightAll();
+        if(remetente==='user'){ wrapper.appendChild(content); wrapper.appendChild(avatar); } else { wrapper.appendChild(avatar); wrapper.appendChild(content); }
+        chatArea.appendChild(wrapper); chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function pararResposta() { if(isGenerating) { isGenerating=false; if(controller) controller.abort(); alternarBotoes(false); const el=document.getElementById('msg-animating'); if(el){el.querySelector('.message-content').classList.remove('cursor-active'); el.removeAttribute('id');} } }
+    function alternarBotoes(gerando) { if(gerando){ sendBtn.style.display='none'; stopBtn.style.display='flex'; } else { sendBtn.style.display='flex'; stopBtn.style.display='none'; } }
+
+    async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+        let prompt = isTitle ? `Analise: '${mensagem}'. Crie um título com MAX 4 palavras. Responda APENAS o título.` : `Você é o RafAI, assistente de Enfermagem e IoT. Use Markdown. Msg: ${mensagem}`;
+        const parts = [{ text: prompt }];
+        if (arquivoBase64 && !isTitle) { const base64Clean = arquivoBase64.split(',')[1]; parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } }); }
+        const payload = { contents: [{ parts: parts }] };
+        controller = new AbortController();
+        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text;
+    }
+
+    async function enviar() {
+        if (isGenerating) return;
+        const texto = msgInput.value.trim();
+        if (!texto && !arquivoSelecionado) return;
+        const idx = todasConversas.findIndex(c => c.id === chatAtualId); if (idx === -1) return;
+        if (todasConversas[idx].mensagens.length === 0) { chamarIA(texto, null, null, true).then(titulo => { const i = todasConversas.findIndex(c => c.id === chatAtualId); if(i!==-1) { todasConversas[i].titulo = titulo.replace(/[*#]/g, '').trim(); salvarDados(); } }); }
+        todasConversas[idx].mensagens.push({ texto, remetente: 'user', arquivo: arquivoSelecionado, tipoArquivo: tipoArquivoVisual });
+        salvarDados();
+        renderizarMensagem(texto, 'user', arquivoSelecionado, tipoArquivoVisual, false);
+        const arqTemp = arquivoSelecionado; const mimeTemp = mimeTypeSelecionado;
+        msgInput.value = ''; msgInput.style.height = '50px'; removerArquivo(); loader.style.display = 'block'; chatArea.scrollTop = chatArea.scrollHeight;
+        try {
+            const respostaIA = await chamarIA(texto, arqTemp, mimeTemp);
+            loader.style.display = 'none';
+            const currentIdx = todasConversas.findIndex(c => c.id === chatAtualId);
+            if (currentIdx !== -1) { todasConversas[currentIdx].mensagens.push({ texto: respostaIA, remetente: 'bot', arquivo: null }); salvarDados(); }
+            renderizarMensagem(respostaIA, 'bot', null, null, true);
+        } catch (error) { if (error.name !== 'AbortError') { loader.style.display = 'none'; renderizarMensagem("❌ Erro ao conectar com o Google Gemini.", 'bot', null, null, false); } }
+    }
+    msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
+</script>
 </body>
 </html>
-

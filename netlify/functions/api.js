@@ -16,13 +16,15 @@ exports.handler = async function(event, context) {
         }
 
         let bodyText = event.body;
+        if (!bodyText) return { statusCode: 400, headers, body: JSON.stringify({ error: "Corpo vazio." }) };
+        
         if (event.isBase64Encoded) {
             bodyText = Buffer.from(event.body, 'base64').toString('utf8');
         }
+
         const body = JSON.parse(bodyText || "{}");
         const { message, file, mimeType, isTitle } = body;
 
-        // Prompt
         let promptText = isTitle ? 
             `Analise: '${message}'. Crie um título com MAX 4 palavras.` : 
             `Você é o RafAI. Responda sobre saúde/enfermagem. Markdown. Pergunta: ${message}`;
@@ -34,12 +36,9 @@ exports.handler = async function(event, context) {
             parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } });
         }
 
-        // --- MUDANÇA CRUCIAL: USANDO O MODELO 'gemini-pro' (MAIS ESTÁVEL) ---
-        // Se este falhar, trocaremos para 'gemini-1.5-flash' novamente, mas testemos este.
-        const modelVersion = file ? "gemini-1.5-flash" : "gemini-pro"; 
-        // Nota: gemini-pro não aceita imagens antigamente, então usamos flash se tiver imagem.
-        
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelVersion}:generateContent?key=${API_KEY}`;
+        // --- CORREÇÃO FINAL: Usamos SEMPRE o 1.5-flash ---
+        // Esse modelo nunca dá erro 404 na versão atual
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
         
         const response = await fetch(url, {
             method: 'POST',

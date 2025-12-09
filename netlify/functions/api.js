@@ -51,7 +51,7 @@ exports.handler = async function(event, context) {
         }
 
         // 5. O MODELO CORRETO (Sem 'latest', sem 'pro', sem '2.0')
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+        const $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" . $api_key;
         
         const response = await fetch(url, {
             method: 'POST',

@@ -1,45 +1,55 @@
-export default async (req, context) => {
-    // A chave fica segura nas variáveis do sistema do Netlify
+// api.js - Versão Compatível com GitHub/Netlify padrão
+exports.handler = async function(event, context) {
+    // 1. Pega a chave dos Segredos do Netlify
     const API_KEY = process.env.GEMINI_API_KEY;
 
-    if (!API_KEY) {
-        return new Response("Erro de configuração: API Key não encontrada no servidor.", { status: 500 });
+    // 2. Configurações de segurança (CORS) para seu site aceitar a resposta
+    const headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Content-Type": "application/json"
+    };
+
+    // 3. Responde a verificações do navegador (Pre-flight)
+    if (event.httpMethod === "OPTIONS") {
+        return { statusCode: 200, headers, body: "OK" };
     }
 
-    // Apenas aceita método POST
-    if (req.method !== "POST") {
-        return new Response("Método não permitido", { status: 405 });
+    // 4. Validações básicas
+    if (!API_KEY) {
+        return { statusCode: 500, headers, body: JSON.stringify({ error: "Chave de API não configurada no Netlify." }) };
+    }
+
+    if (event.httpMethod !== "POST") {
+        return { statusCode: 405, headers, body: JSON.stringify({ error: "Método não permitido." }) };
     }
 
     try {
-        // Pega os dados que vieram do seu site
-        const { message, file, mimeType, isTitle } = await req.json();
+        // 5. Processa os dados enviados pelo seu site
+        const body = JSON.parse(event.body);
+        const { message, file, mimeType, isTitle } = body;
 
-        // Monta o prompt igual você fazia no frontend
+        // Monta o prompt
         let promptText = isTitle ? 
             `Analise: '${message}'. Crie um título com MAX 4 palavras. Responda APENAS o título.` : 
             `Você é o RafAI, um assistente especializado em Enfermagem e Fisioterapia.
             
             SUAS REGRAS DE CONDUTA:
-            1. ACEITE cumprimentos básicos (Oi, Bom dia, Olá) de forma educada e breve, apresentando-se como especialista na área.
-            2. Responda a perguntas técnicas sobre procedimentos clínicos, anatomia, reabilitação, medicamentos e diagnósticos.
-            3. Se a pergunta for sobre assuntos totalmente fora do tema (ex: política, futebol, receitas culinárias, piadas), RECUSE-SE a responder educadamente dizendo que só fala de saúde.
-            4. Se o usuário perguntar "Tudo bem?", responda brevemente e pergunte como pode ajudar na área da saúde.
+            1. Responda a perguntas técnicas sobre saúde, anatomia e procedimentos.
+            2. Se o assunto for fora de saúde (esporte, política, receitas), RECUSE educadamente.
+            3. Seja cordial e profissional.
             
-            Use formatação Markdown.
-            Pergunta do usuário: ${message}`;
+            Use Markdown. Pergunta do usuário: ${message}`;
 
         const parts = [{ text: promptText }];
         
-        // Se tiver arquivo, adiciona
         if (file && !isTitle) {
             const base64Clean = file.split(',')[1];
             parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } });
         }
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
-
-        const response = await fetch(url, {
+        // 6. Chama o Google Gemini
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: parts }] })
@@ -47,12 +57,19 @@ export default async (req, context) => {
 
         const data = await response.json();
 
-        // Retorna a resposta do Google para o seu site
-        return new Response(JSON.stringify(data), {
-            headers: { "Content-Type": "application/json" }
-        });
+        // 7. Devolve a resposta para o seu site
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify(data)
+        };
 
     } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+        console.error("Erro na função:", error);
+        return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: error.message || "Erro interno no servidor." })
+        };
     }
 };

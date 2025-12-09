@@ -126,28 +126,35 @@
         .input-area { padding: 20px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--glass-border); display: flex; gap: 12px; align-items: flex-end; position: relative; }
         
         /* --- CORREÇÃO: ALTURA, ALINHAMENTO E REMOÇÃO DE SCROLL --- */
-        textarea { 
-            flex: 1; 
-            background: rgba(255,255,255,0.05); 
-            border: 1px solid var(--glass-border); 
-            /* Padding ajustado para centralizar o texto verticalmente */
-            padding: 13px 20px; 
-            border-radius: 12px; 
-            color: white; 
-            font-size: 1rem; 
-            outline: none; 
-            transition: 0.2s; 
-            resize: none; 
-            /* Altura fixa inicial igual à dos botões (50px) para alinhar */
-            height: 50px; 
-            max-height: 150px; 
-            overflow-y: auto; 
-            line-height: 1.5; 
-            font-family: 'Inter', sans-serif; 
-            /* Esconder setas da barra de rolagem */
-            scrollbar-width: none; 
-            -ms-overflow-style: none; 
-        }
+/* Procure por 'textarea' no seu CSS e troque por isso: */
+textarea { 
+    flex: 1; 
+    background: rgba(255,255,255,0.05); 
+    border: 1px solid var(--glass-border); 
+    padding: 13px 20px; 
+    border-radius: 12px; 
+    color: white; 
+    font-size: 1rem; 
+    outline: none; 
+    transition: 0.2s; 
+    resize: none; 
+    height: 50px; 
+    max-height: 150px; 
+    overflow-y: auto; 
+    line-height: 1.5; 
+    font-family: 'Inter', sans-serif; 
+    
+    /* COMANDOS PARA REMOVER SCROLLBAR EM TODOS OS NAVEGADORES */
+    scrollbar-width: none !important;  /* Firefox */
+    -ms-overflow-style: none !important;  /* IE/Edge */
+}
+
+/* Chrome, Safari, Edge, Opera */
+textarea::-webkit-scrollbar { 
+    display: none !important; 
+    width: 0px !important;
+    background: transparent !important;
+}
         textarea::-webkit-scrollbar { display: none; }
         /* ---------------------------------------------- */
 

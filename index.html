@@ -78,34 +78,14 @@
         .delete-chat { opacity: 0; color: #ff4d4d; padding: 4px 8px; border-radius: 4px; flex-shrink: 0; transition: 0.1s; }
         .history-item:hover .delete-chat { opacity: 1; }
         .delete-chat:hover { background: rgba(255, 77, 77, 0.2); }
+        
         /* --- ESTILO DO PIN (FIXAR) --- */
-.actions-group { display: flex; align-items: center; gap: 5px; }
-
-.pin-chat { 
-    opacity: 0; 
-    color: #94a3b8; 
-    padding: 4px; 
-    border-radius: 4px; 
-    transition: 0.2s; 
-    font-size: 0.85rem;
-}
-
-.history-item:hover .pin-chat { opacity: 1; }
-
-.pin-chat:hover { background: rgba(255, 255, 255, 0.1); color: white; }
-
-/* Quando está fixado, fica visível e dourado */
-.pin-chat.active { 
-    opacity: 1; 
-    color: #fbbf24; /* Cor Dourada */
-    transform: rotate(45deg); 
-}
-
-.pinned-separator {
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    margin: 10px 0;
-    position: relative;
-}
+        .actions-group { display: flex; align-items: center; gap: 5px; }
+        .pin-chat { opacity: 0; color: #94a3b8; padding: 4px; border-radius: 4px; transition: 0.2s; font-size: 0.85rem; }
+        .history-item:hover .pin-chat { opacity: 1; }
+        .pin-chat:hover { background: rgba(255, 255, 255, 0.1); color: white; }
+        .pin-chat.active { opacity: 1; color: #fbbf24; transform: rotate(45deg); }
+        .pinned-separator { border-bottom: 1px solid rgba(255,255,255,0.1); margin: 10px 0; position: relative; }
 
         .chat-container { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
         .header { padding: 15px 25px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.1); }
@@ -271,7 +251,6 @@
     </div>
 
 <script>
-    const API_KEY = "AIzaSyASYmef12_4FFF4d8JPyJY9sAW6yI8v0v0"; // ⚠️ Cuidado ao expor keys no front-end
 
     const chatArea = document.getElementById('chat-area');
     const loader = document.getElementById('loader');
@@ -356,52 +335,30 @@
 
     function iniciarNovoChat() { 
         pararResposta(); chatAtualId = Date.now(); 
-        // Adiciona propriedade 'fixed: false'
         todasConversas.unshift({ id: chatAtualId, titulo: "Nova Conversa", mensagens: [], fixed: false }); 
-        if(todasConversas.length>50) todasConversas.pop(); // Limite de histórico aumentado
+        if(todasConversas.length>50) todasConversas.pop(); 
         salvarDados(); carregarConversa(chatAtualId); 
     }
 
-    // --- NOVA FUNÇÃO: FIXAR CONVERSA ---
     function toggleFixar(e, id) {
         e.stopPropagation();
         const chatIndex = todasConversas.findIndex(c => c.id === id);
         if (chatIndex === -1) return;
-
         const chat = todasConversas[chatIndex];
-
         if (!chat.fixed) {
-            // Verificar limite de 5
             const totalFixados = todasConversas.filter(c => c.fixed).length;
-            if (totalFixados >= 5) {
-                alert("Você atingiu o limite de 5 conversas fixadas!");
-                return;
-            }
+            if (totalFixados >= 5) { alert("Você atingiu o limite de 5 conversas fixadas!"); return; }
             chat.fixed = true;
-        } else {
-            chat.fixed = false;
-        }
+        } else { chat.fixed = false; }
         salvarDados();
     }
 
     function renderizarSidebar() {
         historyList.innerHTML = '';
-        
-        // Separa fixados de normais
         const fixados = todasConversas.filter(c => c.fixed);
         const normais = todasConversas.filter(c => !c.fixed);
-
-        // Renderiza Fixados
         fixados.forEach(c => criarItemSidebar(c));
-
-        // Separador se houver fixados
-        if (fixados.length > 0 && normais.length > 0) {
-            const separator = document.createElement('div');
-            separator.className = 'pinned-separator';
-            historyList.appendChild(separator);
-        }
-
-        // Renderiza Normais
+        if (fixados.length > 0 && normais.length > 0) { const separator = document.createElement('div'); separator.className = 'pinned-separator'; historyList.appendChild(separator); }
         normais.forEach(c => criarItemSidebar(c));
     }
 
@@ -409,48 +366,25 @@
         const item = document.createElement('div'); 
         item.className = `history-item ${c.id === chatAtualId ? 'active' : ''}`; 
         item.onclick = () => carregarConversa(c.id);
-        
-        // Ícone do Pin (Dourado se fixed=true)
         const pinClass = c.fixed ? 'pin-chat active' : 'pin-chat';
-        const pinIcon = c.fixed ? 'fa-solid fa-thumbtack' : 'fa-solid fa-thumbtack'; // Pode mudar o ícone se quiser
-
-        item.innerHTML = `
-            <span class="history-title">
-                <i class="fa-regular fa-message"></i> ${c.titulo}
-            </span>
-            <div class="actions-group">
-                <span class="${pinClass}" onclick="toggleFixar(event, ${c.id})" title="${c.fixed ? 'Desfixar' : 'Fixar'}">
-                    <i class="${pinIcon}"></i>
-                </span>
-                <span class="delete-chat" onclick="deletarConversa(event, ${c.id})" title="Apagar">
-                    <i class="fa-solid fa-trash"></i>
-                </span>
-            </div>
-        `;
+        const pinIcon = c.fixed ? 'fa-solid fa-thumbtack' : 'fa-solid fa-thumbtack';
+        item.innerHTML = `<span class="history-title"><i class="fa-regular fa-message"></i> ${c.titulo}</span><div class="actions-group"><span class="${pinClass}" onclick="toggleFixar(event, ${c.id})" title="${c.fixed ? 'Desfixar' : 'Fixar'}"><i class="${pinIcon}"></i></span><span class="delete-chat" onclick="deletarConversa(event, ${c.id})" title="Apagar"><i class="fa-solid fa-trash"></i></span></div>`;
         historyList.appendChild(item);
     }
 
     function carregarConversa(id) {
         pararResposta(); chatAtualId = id; chatArea.innerHTML = '';
         const conversa = todasConversas.find(c => c.id === id); if(!conversa) return;
-        
-        // Atualiza visual da sidebar para marcar ativo
         document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
-        renderizarSidebar(); // Re-renderiza para garantir ordem e classe active
-
+        renderizarSidebar(); 
         if(conversa.mensagens.length===0) renderizarMensagem('Olá! Sou o **RafAI**. Posso analisar imagens, códigos e dúvidas de Enfermagem/IoT.', 'bot', null, null, false);
         else conversa.mensagens.forEach(msg => renderizarMensagem(msg.texto, msg.remetente, msg.arquivo, msg.tipoArquivo, false));
     }
 
     function deletarConversa(e, id) { 
-        e.stopPropagation(); 
-        if(!confirm("Apagar esta conversa?")) return; 
-        todasConversas = todasConversas.filter(c => c.id !== id); 
-        salvarDados(); 
-        if(id === chatAtualId) { 
-            if(todasConversas.length > 0) carregarConversa(todasConversas[0].id); 
-            else iniciarNovoChat(); 
-        } 
+        e.stopPropagation(); if(!confirm("Apagar esta conversa?")) return; 
+        todasConversas = todasConversas.filter(c => c.id !== id); salvarDados(); 
+        if(id === chatAtualId) { if(todasConversas.length > 0) carregarConversa(todasConversas[0].id); else iniciarNovoChat(); } 
     }
 
     function renderizarMensagem(texto, remetente, arquivoSrc, tipoArq, animar) {
@@ -468,10 +402,17 @@
         }
 
         if(remetente === 'bot' && animar) {
-            isGenerating = true; alternarBotoes(true); content.classList.add('cursor-active');
+            // O botão já foi ativado no enviar(), aqui apenas manipulamos o DOM da mensagem
+            content.classList.add('cursor-active');
             wrapper.appendChild(avatar); wrapper.appendChild(content); chatArea.appendChild(wrapper); wrapper.id = 'msg-animating';
             content.innerHTML += marked.parse(texto); hljs.highlightAll(); content.classList.remove('cursor-active');
-            isGenerating = false; alternarBotoes(false); wrapper.removeAttribute('id'); chatArea.scrollTop = chatArea.scrollHeight; return;
+            
+            // Fim da geração (sucesso)
+            isGenerating = false; 
+            alternarBotoes(false); 
+            wrapper.removeAttribute('id'); 
+            chatArea.scrollTop = chatArea.scrollHeight; 
+            return;
         }
         let html = ""; if(remetente === 'bot') { html += marked.parse(texto); } else { html += texto.replace(/\n/g, '<br>'); }
         content.innerHTML += html; if(remetente === 'bot') hljs.highlightAll();
@@ -482,15 +423,37 @@
     function pararResposta() { if(isGenerating) { isGenerating=false; if(controller) controller.abort(); alternarBotoes(false); const el=document.getElementById('msg-animating'); if(el){el.querySelector('.message-content').classList.remove('cursor-active'); el.removeAttribute('id');} } }
     function alternarBotoes(gerando) { if(gerando){ sendBtn.style.display='none'; stopBtn.style.display='flex'; } else { sendBtn.style.display='flex'; stopBtn.style.display='none'; } }
 
-    async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
-        let prompt = isTitle ? `Analise: '${mensagem}'. Crie um título com MAX 4 palavras. Responda APENAS o título.` : `Você é o RafAI, assistente de Enfermagem e IoT. Use Markdown. Msg: ${mensagem}`;
-        const parts = [{ text: prompt }];
-        if (arquivoBase64 && !isTitle) { const base64Clean = arquivoBase64.split(',')[1]; parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } }); }
-        const payload = { contents: [{ parts: parts }] };
+async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
+        // Agora chamamos a nossa função no Netlify, não o Google direto
+        const url = `/.netlify/functions/api`;
+        
+        const payload = {
+            message: mensagem,
+            file: arquivoBase64,
+            mimeType: mimeType,
+            isTitle: isTitle
+        };
+
         controller = new AbortController();
-        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro no servidor: ${response.statusText}`);
+        }
+
         const data = await response.json();
+        
+        // Verifica se o Google retornou erro ou sucesso
+        if (data.error) {
+            throw new Error(data.error.message || "Erro na API do Gemini");
+        }
+        
         return data.candidates[0].content.parts[0].text;
     }
 
@@ -498,20 +461,40 @@
         if (isGenerating) return;
         const texto = msgInput.value.trim();
         if (!texto && !arquivoSelecionado) return;
+        
         const idx = todasConversas.findIndex(c => c.id === chatAtualId); if (idx === -1) return;
-        if (todasConversas[idx].mensagens.length === 0) { chamarIA(texto, null, null, true).then(titulo => { const i = todasConversas.findIndex(c => c.id === chatAtualId); if(i!==-1) { todasConversas[i].titulo = titulo.replace(/[*#]/g, '').trim(); salvarDados(); } }); }
+        
+        if (todasConversas[idx].mensagens.length === 0) { 
+            chamarIA(texto, null, null, true).then(titulo => { 
+                const i = todasConversas.findIndex(c => c.id === chatAtualId); 
+                if(i!==-1) { todasConversas[i].titulo = titulo.replace(/[*#]/g, '').trim(); salvarDados(); } 
+            }); 
+        }
+        
         todasConversas[idx].mensagens.push({ texto, remetente: 'user', arquivo: arquivoSelecionado, tipoArquivo: tipoArquivoVisual });
         salvarDados();
         renderizarMensagem(texto, 'user', arquivoSelecionado, tipoArquivoVisual, false);
+        
         const arqTemp = arquivoSelecionado; const mimeTemp = mimeTypeSelecionado;
         msgInput.value = ''; msgInput.style.height = '50px'; removerArquivo(); loader.style.display = 'block'; chatArea.scrollTop = chatArea.scrollHeight;
+        
+        // --- ATIVA O BOTÃO DE PARAR ANTES DA REQUISIÇÃO ---
+        isGenerating = true; 
+        alternarBotoes(true);
+        // --------------------------------------------------
+
         try {
             const respostaIA = await chamarIA(texto, arqTemp, mimeTemp);
             loader.style.display = 'none';
             const currentIdx = todasConversas.findIndex(c => c.id === chatAtualId);
             if (currentIdx !== -1) { todasConversas[currentIdx].mensagens.push({ texto: respostaIA, remetente: 'bot', arquivo: null }); salvarDados(); }
             renderizarMensagem(respostaIA, 'bot', null, null, true);
-        } catch (error) { if (error.name !== 'AbortError') { loader.style.display = 'none'; renderizarMensagem("❌ Erro ao conectar com o Google Gemini.", 'bot', null, null, false); } }
+        } catch (error) { 
+            isGenerating = false; 
+            alternarBotoes(false); 
+            loader.style.display = 'none';
+            if (error.name !== 'AbortError') { renderizarMensagem("❌ Erro ao conectar com o Google Gemini.", 'bot', null, null, false); } 
+        }
     }
     msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
 </script>

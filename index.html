@@ -125,37 +125,34 @@
         
         .input-area { padding: 20px; background: rgba(0,0,0,0.2); border-top: 1px solid var(--glass-border); display: flex; gap: 12px; align-items: flex-end; position: relative; }
         
-        /* --- CORREÇÃO: ALTURA, ALINHAMENTO E REMOÇÃO DE SCROLL --- */
-/* Procure por 'textarea' no seu CSS e troque por isso: */
-textarea { 
-    flex: 1; 
-    background: rgba(255,255,255,0.05); 
-    border: 1px solid var(--glass-border); 
-    padding: 13px 20px; 
-    border-radius: 12px; 
-    color: white; 
-    font-size: 1rem; 
-    outline: none; 
-    transition: 0.2s; 
-    resize: none; 
-    height: 50px; 
-    max-height: 150px; 
-    overflow-y: auto; 
-    line-height: 1.5; 
-    font-family: 'Inter', sans-serif; 
-    
-    /* COMANDOS PARA REMOVER SCROLLBAR EM TODOS OS NAVEGADORES */
-    scrollbar-width: none !important;  /* Firefox */
-    -ms-overflow-style: none !important;  /* IE/Edge */
-}
-
-/* Chrome, Safari, Edge, Opera */
-textarea::-webkit-scrollbar { 
-    display: none !important; 
-    width: 0px !important;
-    background: transparent !important;
-}
-        textarea::-webkit-scrollbar { display: none; }
+        /* --- CORREÇÃO: REMOVER SCROLLBAR (TODOS OS NAVEGADORES) --- */
+        textarea { 
+            flex: 1; 
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid var(--glass-border); 
+            padding: 13px 20px; 
+            border-radius: 12px; 
+            color: white; 
+            font-size: 1rem; 
+            outline: none; 
+            transition: 0.2s; 
+            resize: none; 
+            height: 50px; 
+            max-height: 150px; 
+            overflow-y: auto; 
+            line-height: 1.5; 
+            font-family: 'Inter', sans-serif; 
+            /* Firefox */
+            scrollbar-width: none !important; 
+            /* IE e Edge */
+            -ms-overflow-style: none !important; 
+        }
+        /* Chrome, Safari, Edge, Opera */
+        textarea::-webkit-scrollbar { 
+            display: none !important; 
+            width: 0px !important;
+            background: transparent !important;
+        }
         /* ---------------------------------------------- */
 
         textarea:focus { background: rgba(255,255,255,0.1); border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2); }
@@ -258,7 +255,6 @@ textarea::-webkit-scrollbar {
     </div>
 
 <script>
-
     const chatArea = document.getElementById('chat-area');
     const loader = document.getElementById('loader');
     const historyList = document.getElementById('history-list');
@@ -409,12 +405,10 @@ textarea::-webkit-scrollbar {
         }
 
         if(remetente === 'bot' && animar) {
-            // O botão já foi ativado no enviar(), aqui apenas manipulamos o DOM da mensagem
             content.classList.add('cursor-active');
             wrapper.appendChild(avatar); wrapper.appendChild(content); chatArea.appendChild(wrapper); wrapper.id = 'msg-animating';
             content.innerHTML += marked.parse(texto); hljs.highlightAll(); content.classList.remove('cursor-active');
             
-            // Fim da geração (sucesso)
             isGenerating = false; 
             alternarBotoes(false); 
             wrapper.removeAttribute('id'); 
@@ -430,8 +424,8 @@ textarea::-webkit-scrollbar {
     function pararResposta() { if(isGenerating) { isGenerating=false; if(controller) controller.abort(); alternarBotoes(false); const el=document.getElementById('msg-animating'); if(el){el.querySelector('.message-content').classList.remove('cursor-active'); el.removeAttribute('id');} } }
     function alternarBotoes(gerando) { if(gerando){ sendBtn.style.display='none'; stopBtn.style.display='flex'; } else { sendBtn.style.display='flex'; stopBtn.style.display='none'; } }
 
-async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
-        // Agora chamamos a nossa função no Netlify, não o Google direto
+    async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
+        // Aponta para a função do Netlify
         const url = `/.netlify/functions/api`;
         
         const payload = {
@@ -443,6 +437,7 @@ async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
 
         controller = new AbortController();
 
+        // Tenta conectar com o Netlify
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -450,15 +445,22 @@ async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
             signal: controller.signal
         });
 
+        // Se o Netlify devolver erro (Ex: 404, 500)
         if (!response.ok) {
-            throw new Error(`Erro no servidor: ${response.statusText}`);
+            const errText = await response.text();
+            throw new Error(`Erro HTTP ${response.status}: ${errText}`);
         }
 
         const data = await response.json();
         
-        // Verifica se o Google retornou erro ou sucesso
+        // Se o Google devolver erro (Ex: Chave inválida, filtro)
         if (data.error) {
-            throw new Error(data.error.message || "Erro na API do Gemini");
+            const msgErro = data.error.message || JSON.stringify(data.error);
+            throw new Error(`Google recusou: ${msgErro}`);
+        }
+
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+            throw new Error("A IA não retornou texto (pode ter sido bloqueada por segurança).");
         }
         
         return data.candidates[0].content.parts[0].text;
@@ -475,7 +477,7 @@ async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
             chamarIA(texto, null, null, true).then(titulo => { 
                 const i = todasConversas.findIndex(c => c.id === chatAtualId); 
                 if(i!==-1) { todasConversas[i].titulo = titulo.replace(/[*#]/g, '').trim(); salvarDados(); } 
-            }); 
+            }).catch(e => console.log("Erro ao gerar título:", e)); 
         }
         
         todasConversas[idx].mensagens.push({ texto, remetente: 'user', arquivo: arquivoSelecionado, tipoArquivo: tipoArquivoVisual });
@@ -485,10 +487,8 @@ async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
         const arqTemp = arquivoSelecionado; const mimeTemp = mimeTypeSelecionado;
         msgInput.value = ''; msgInput.style.height = '50px'; removerArquivo(); loader.style.display = 'block'; chatArea.scrollTop = chatArea.scrollHeight;
         
-        // --- ATIVA O BOTÃO DE PARAR ANTES DA REQUISIÇÃO ---
         isGenerating = true; 
         alternarBotoes(true);
-        // --------------------------------------------------
 
         try {
             const respostaIA = await chamarIA(texto, arqTemp, mimeTemp);
@@ -500,7 +500,13 @@ async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
             isGenerating = false; 
             alternarBotoes(false); 
             loader.style.display = 'none';
-            if (error.name !== 'AbortError') { renderizarMensagem("❌ Erro ao conectar com o Google Gemini.", 'bot', null, null, false); } 
+            console.error("ERRO DETALHADO:", error); 
+
+            if (error.name === 'AbortError') { 
+                renderizarMensagem("🛑 *Resposta interrompida pelo usuário.*", 'bot', null, null, false); 
+            } else { 
+                renderizarMensagem(`❌ **Ocorreu um erro:**\n\n\`${error.message}\``, 'bot', null, null, false); 
+            } 
         }
     }
     msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });

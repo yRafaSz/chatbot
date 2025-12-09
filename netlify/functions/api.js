@@ -36,8 +36,8 @@ exports.handler = async function(event, context) {
             parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } });
         }
 
-        // --- CORREÇÃO AQUI: Nome do modelo padrão (sem '-latest') ---
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+        // --- VOLTAMOS PARA O 2.0 AQUI ---
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: parts }] })

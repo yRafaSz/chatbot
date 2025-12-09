@@ -1,11 +1,12 @@
 exports.handler = async function(event, context) {
-    // Cabeçalhos (Igual ao PHP)
+    // 1. Configuração de Cabeçalhos (Igual ao PHP header)
     const headers = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type",
         "Content-Type": "application/json"
     };
 
+    // Responde ao 'pre-flight' do navegador
     if (event.httpMethod === "OPTIONS") {
         return { statusCode: 200, headers, body: "OK" };
     }
@@ -16,15 +17,29 @@ exports.handler = async function(event, context) {
             return { statusCode: 500, headers, body: JSON.stringify({ error: "Chave API não configurada." }) };
         }
 
-        // Processamento do corpo (No PHP era $_POST, aqui é JSON)
+        // 2. Tratamento do Corpo da Requisição
+        // Proteção extra contra o erro "JSON Input"
         let bodyText = event.body;
+        if (!bodyText) {
+             return { statusCode: 400, headers, body: JSON.stringify({ error: "Corpo da mensagem vazio." }) };
+        }
+        
         if (event.isBase64Encoded) {
             bodyText = Buffer.from(event.body, 'base64').toString('utf8');
         }
-        const body = JSON.parse(bodyText || "{}");
+
+        // Tenta ler o JSON com segurança
+        let body;
+        try {
+            body = JSON.parse(bodyText);
+        } catch (e) {
+            console.error("Erro de Parse JSON:", bodyText);
+            return { statusCode: 400, headers, body: JSON.stringify({ error: "O servidor recebeu dados inválidos (não é JSON)." }) };
+        }
+
         const { message, file, mimeType, isTitle } = body;
 
-        // Prompt (Igual à lógica do seu PHP)
+        // 3. Prompt (Baseado na sua lógica do PDF)
         let promptText = isTitle ? 
             `Analise: '${message}'. Crie um título com MAX 4 palavras.` : 
             `Você é um assistente virtual que explica conceitos básicos de enfermagem com IoT. Fale sempre de forma simples. Mensagem: ${message}`;
@@ -36,8 +51,7 @@ exports.handler = async function(event, context) {
             parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } });
         }
 
-        // --- AQUI ESTÁ O SEGREDO: Voltamos para o 2.0 (Igual ao seu PHP) ---
-        // Esse modelo foi o único que sua conta reconheceu (mesmo sem crédito)
+        // 4. MODELO 2.0 (Igual ao seu PHP e ao erro de Cota que provou que ele existe)
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
         
         const response = await fetch(url, {
@@ -49,6 +63,7 @@ exports.handler = async function(event, context) {
         const responseText = await response.text();
 
         if (!response.ok) {
+            // Se der erro, mostra exatamente o que o Google respondeu
             return { 
                 statusCode: response.status, 
                 headers, 

@@ -424,8 +424,7 @@
     function pararResposta() { if(isGenerating) { isGenerating=false; if(controller) controller.abort(); alternarBotoes(false); const el=document.getElementById('msg-animating'); if(el){el.querySelector('.message-content').classList.remove('cursor-active'); el.removeAttribute('id');} } }
     function alternarBotoes(gerando) { if(gerando){ sendBtn.style.display='none'; stopBtn.style.display='flex'; } else { sendBtn.style.display='flex'; stopBtn.style.display='none'; } }
 
-    async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
-        // Aponta para a função do Netlify
+async function chamarIA(mensagem, arquivoBase64, mimeType, isTitle = false) {
         const url = `/.netlify/functions/api`;
         
         const payload = {
@@ -437,7 +436,6 @@
 
         controller = new AbortController();
 
-        // Tenta conectar com o Netlify
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -445,22 +443,30 @@
             signal: controller.signal
         });
 
-        // Se o Netlify devolver erro (Ex: 404, 500)
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Erro HTTP ${response.status}: ${errText}`);
+        // 1. LER COMO TEXTO PRIMEIRO (Para não dar erro de JSON)
+        const rawText = await response.text();
+        
+        // 2. TENTAR CONVERTER PARA JSON
+        let data;
+        try {
+            data = JSON.parse(rawText);
+        } catch (e) {
+            // Se falhar, é porque o Netlify devolveu um erro HTML (ex: 500, 502)
+            console.error("Resposta não-JSON recebida:", rawText);
+            throw new Error(`Erro Fatal no Servidor (Não é JSON): ${rawText.substring(0, 100)}...`);
         }
 
-        const data = await response.json();
-        
-        // Se o Google devolver erro (Ex: Chave inválida, filtro)
+        if (!response.ok) {
+            throw new Error(`Erro HTTP ${response.status}: ${data.error || rawText}`);
+        }
+
         if (data.error) {
             const msgErro = data.error.message || JSON.stringify(data.error);
             throw new Error(`Google recusou: ${msgErro}`);
         }
 
         if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-            throw new Error("A IA não retornou texto (pode ter sido bloqueada por segurança).");
+            throw new Error("A IA não retornou texto.");
         }
         
         return data.candidates[0].content.parts[0].text;
@@ -513,3 +519,4 @@
 </script>
 </body>
 </html>
+

@@ -1,5 +1,4 @@
 exports.handler = async function(event, context) {
-    // --- CABEÇALHOS ---
     const headers = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type",
@@ -11,21 +10,22 @@ exports.handler = async function(event, context) {
     }
 
     try {
-        // !!! ATENÇÃO: ISSO É SÓ UM TESTE. DEPOIS VAMOS TIRAR DAQUI !!!
-        const API_KEY = "AIzaSyD1vZIi6fD-lvEY7y5_hkrbeLMDFjiGqAo"; 
-        
-        // Validação básica
-        if (API_KEY.includes("AIzaSyD1vZIi6fD-lvEY7y5_hkrbeLMDFjiGqAo")) {
-             return { statusCode: 500, headers, body: JSON.stringify({ error: "Você esqueceu de colar a chave no código!" }) };
+        const API_KEY = process.env.GEMINI_API_KEY;
+        if (!API_KEY) {
+            return { statusCode: 500, headers, body: JSON.stringify({ error: "Chave API não configurada." }) };
         }
 
-        const body = JSON.parse(event.body || "{}");
+        let bodyText = event.body;
+        if (event.isBase64Encoded) {
+            bodyText = Buffer.from(event.body, 'base64').toString('utf8');
+        }
+        const body = JSON.parse(bodyText || "{}");
         const { message, file, mimeType, isTitle } = body;
 
-        // Monta o prompt
-        const promptText = isTitle ? 
-            `Resuma em 4 palavras: ${message}` : 
-            `Você é o RafAI. Responda sobre saúde. Pergunta: ${message}`;
+        // Prompt
+        let promptText = isTitle ? 
+            `Analise: '${message}'. Crie um título com MAX 4 palavras.` : 
+            `Você é o RafAI. Responda sobre saúde/enfermagem. Markdown. Pergunta: ${message}`;
 
         const parts = [{ text: promptText }];
         
@@ -34,11 +34,13 @@ exports.handler = async function(event, context) {
             parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } });
         }
 
-        // --- USANDO O MODELO QUE FUNCIONA (SEM 'LATEST', SEM '2.0') ---
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+        // --- MUDANÇA CRUCIAL: USANDO O MODELO 'gemini-pro' (MAIS ESTÁVEL) ---
+        // Se este falhar, trocaremos para 'gemini-1.5-flash' novamente, mas testemos este.
+        const modelVersion = file ? "gemini-1.5-flash" : "gemini-pro"; 
+        // Nota: gemini-pro não aceita imagens antigamente, então usamos flash se tiver imagem.
         
-        console.log("Tentando conectar com o Google...");
-
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelVersion}:generateContent?key=${API_KEY}`;
+        
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -46,19 +48,18 @@ exports.handler = async function(event, context) {
         });
 
         const responseText = await response.text();
-        console.log("Resposta do Google:", response.status);
 
         if (!response.ok) {
             return { 
                 statusCode: response.status, 
                 headers, 
-                body: JSON.stringify({ error: `Erro Google (${response.status}): ${responseText}` }) 
+                body: JSON.stringify({ error: `Google recusou (${response.status}): ${responseText}` }) 
             };
         }
 
         return { statusCode: 200, headers, body: responseText };
 
     } catch (error) {
-        return { statusCode: 500, headers, body: JSON.stringify({ error: error.message }) };
+        return { statusCode: 500, headers, body: JSON.stringify({ error: `Erro interno: ${error.message}` }) };
     }
 };

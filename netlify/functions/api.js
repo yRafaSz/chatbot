@@ -11,12 +11,14 @@ exports.handler = async function(event, context) {
 
     try {
         const API_KEY = process.env.GEMINI_API_KEY;
+        
+        // Se a chave não existir, avisa
         if (!API_KEY) {
-            return { statusCode: 500, headers, body: JSON.stringify({ error: "Chave API não configurada." }) };
+            return { statusCode: 500, headers, body: JSON.stringify({ error: "Chave API não configurada no servidor." }) };
         }
 
         let bodyText = event.body;
-        if (!bodyText) return { statusCode: 400, headers, body: JSON.stringify({ error: "Corpo vazio." }) };
+        if (!bodyText) return { statusCode: 400, headers, body: JSON.stringify({ error: "Corpo da mensagem vazio." }) };
         
         if (event.isBase64Encoded) {
             bodyText = Buffer.from(event.body, 'base64').toString('utf8');
@@ -27,7 +29,7 @@ exports.handler = async function(event, context) {
 
         let promptText = isTitle ? 
             `Analise: '${message}'. Crie um título com MAX 4 palavras.` : 
-            `Você é o RafAI. Responda sobre saúde. Markdown. Pergunta: ${message}`;
+            `Você é o RafAI. Responda sobre saúde/enfermagem. Markdown. Pergunta: ${message}`;
 
         const parts = [{ text: promptText }];
         
@@ -36,8 +38,10 @@ exports.handler = async function(event, context) {
             parts.push({ inlineData: { mimeType: mimeType, data: base64Clean } });
         }
 
-        // --- VOLTAMOS PARA O 2.0 AQUI ---
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
+        // --- CORREÇÃO: USANDO O NOME OFICIAL ESTÁVEL ---
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+        
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: parts }] })
@@ -46,18 +50,16 @@ exports.handler = async function(event, context) {
         const responseText = await response.text();
 
         if (!response.ok) {
-            console.error("Erro do Google:", responseText);
             return { 
                 statusCode: response.status, 
                 headers, 
-                body: JSON.stringify({ error: `Google recusou (${response.status}): ${responseText}` }) 
+                body: JSON.stringify({ error: `Erro do Google (${response.status}): ${responseText}` }) 
             };
         }
 
         return { statusCode: 200, headers, body: responseText };
 
     } catch (error) {
-        console.error("Erro Crítico:", error);
         return { statusCode: 500, headers, body: JSON.stringify({ error: `Erro interno: ${error.message}` }) };
     }
 };
